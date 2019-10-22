@@ -23,6 +23,8 @@ def projectGitCredsName = 'SV-TFS2015-Build'
 
 def projectReleaseBranchRegex = 'release-.*'  //Build from these branches are considered "release" builds
 def projectGitBranchName = getGitBranchName()
+def branchIsRelease = projectGitBranchName.matches(projectReleaseBranchRegex)
+
 def applicationName = getApplicationName(projectReleaseBranchRegex)
 
 // Project's POM file
@@ -158,7 +160,7 @@ pipeline {
     
     triggers {
         //pollSCM 'H/30 * * * *' //every 30 minutes
-        pollSCM(isBranchRelease()? '' : 'H * * * *') //never for release, every hour for others
+        pollSCM(branchIsRelease? '' : 'H * * * *') //never for release, every hour for others
         snapshotDependencies()
     }    
     
