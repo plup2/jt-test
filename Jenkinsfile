@@ -217,6 +217,55 @@ pipeline {
             } //of steps
         } //of stage
         
+        stage('Prepare for Release') {
+            when { expression {return getGitBranchName().matches(projectReleaseBranchRegex)} }
+            steps {
+                script {
+                    def git = tool('git')
+
+                    //---[ A little value gymnastic
+                    def projectModel = readMavenPom(file: projectPom)
+                    def version = projectModel.version.replaceAll('-SNAPSHOT', '') 
+                    def tagName = "v" + version                     
+                    def revNumPos = version.lastIndexOf('.') + 1
+                    def revNum = Integer.parseInt(version.substring(revNumPos)) + 1
+                    def nextVersion = version.substring(0, revNumPos) + revNum + '-SNAPSHOT'
+
+                    def gitURLWithCreds = projectGitURL.replaceAll('//', '//${CREDENTIALS}@')
+
+                    //---[ Remove "-SNAPSHOT" from version
+                    withMaven(maven: 'maven', publisherStrategy: 'EXPLICIT') { //turn off publishers for this invocation
+                        sh(script: "mvn --batch-mode --errors versions:set -DnewVersion=${version}")
+                    }
+                    
+                    //---[ Commit release version changes and create tag
+                    withCredentials([usernameColonPassword(credentialsId: projectGitCredsName, variable: 'CREDENTIALS')]) {
+                        sh(script: "'${git}' config --local user.name Jenkins-CI")
+                        sh(script: "'${git}' config --local user.email jenkins@jade-build.intra.dev")
+                        
+                        sh(script: "'${git}' commit --all --message 'Jenkins build ${currentBuild.fullProjectName} #${BUILD_NUMBER} preparing release ${version} on ${java.time.LocalDateTime.now()}'")
+                        
+                        sh(script: "'${git}' tag --annotate release/${tagName} --message 'Release ${version} (Jenkins build ${currentBuild.fullProjectName} #${BUILD_NUMBER})'")
+                    }
+                    
+                    //---[ Set next version right away 
+                    withMaven(maven: 'maven', publisherStrategy: 'EXPLICIT') { //turn off publishers for this invocation
+                        sh(script: "mvn --batch-mode --errors versions:set -DnewVersion=${nextVersion}")
+                    }
+                    
+                    //---[ Commit next version, push everything and checkout newly created tag for building
+                    withCredentials([usernameColonPassword(credentialsId: projectGitCredsName, variable: 'CREDENTIALS')]) {
+                        sh(script: "'${git}' commit --all --message 'Jenkins build ${currentBuild.fullProjectName} #${BUILD_NUMBER} updating pom to next version ${version} on ${java.time.LocalDateTime.now()}'")
+                    
+                        sh(script: "'${git}' push ${gitURLWithCreds}")
+                        sh(script: "'${git}' push ${gitURLWithCreds} tag release/${tagName}")
+                        
+                        sh(script: "'${git}' checkout release/${tagName}")
+                    }                    
+                } //of script
+            } //of steps
+        } //of stage        
+        
         stage('Build and Deploy to Artifactory') {
             steps {
                 script {
