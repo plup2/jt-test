@@ -1,10 +1,7 @@
 /**
    Jenkins Pipeline Project 
-   (MULTIBRANCH - MULTIPROJECT - SADE DEPLOY - declarative)
+   (MULTIBRANCH - MULTIPROJECT - declarative)
 
-   Builds Maven project and, unless in exclusion list, deploys it
-   to SADE environment.
-   
    NOTES: 
      - This pipeline contains the SCM info/url and ignores the parent's 
        scm object. This allows setting up SCM pooling on specific paths,
@@ -18,57 +15,31 @@
 */
 
 // Git URL
-def projectGitURL = 'http://tfs.intra.dmz:8080/tfs/ProjectCollection/EWS-SWE/_git/JavaTemplates'
-def projectGitCredsName = 'SV-TFS2015-Build'
+def projectGitURL = 'https://gccode.ssc-spc.gc.ca/iitb-dgiit/sds/GOCWebTemplates/JavaTemplates.git'
+def projectGitCredsName = ''
 
-def projectGitBranchName = getGitBranchName()
-def applicationName = getApplicationName()
+//applicationName is derived from Jenkins project name (which is second to last in the full name)
+def jobPathElements = currentBuild.fullProjectName.split('/')
+def applicationName = jobPathElements[jobPathElements.length >= 2? jobPathElements.length-2: jobPathElements.length-1]
 
 // Project's POM file
 def projectPom = applicationName + '/pom.xml'
 
 // Git Branch/Paths to match for changes
-def projectGitWatchedPathRegex = applicationName.replaceAll("\\.", '') + '/.*'
-def projectGitWatchedBranches = [[name: '*/' + projectGitBranchName]]
-def projectReleaseBranchRegex = 'release-.*'
-
-// SADE deployment info
-def deploySADEBuildName = '/ca.gc.sade/Deployments/deploy-springboot'
-def deploySADEVerticalMap = [
-        //branch name -> SADE vertical map  
-        'building-builds': [vertical: 'dev', stream: '3'],
-        'building-builds-stream3': [vertical: 'dev', stream: '3'],
-        'jenkinsfile-oas': [vertical: 'dev', stream: '3', deployAction: 'deploy'],
-    ]
-def deploySADEExludedProjects = [
-        'pos-sop-core', 'pos-sop-event'
-    ]
+def projectGitWatchedPathRegex = applicationName + '/.*'
+def projectGitWatchedBranches = [[name: '*/' + env.BRANCH_NAME]]
+def projectReleaseBranchRegex = 'master.*'
 
 // Email extension plugin base parameters
 def emailextConfig = [
-    to: 'pierre.lupien@hrdc-drhc.net,vincent.seguin@hrdc-drhc.net', //comma-separated lits of addresses
+    to: 'pierre.lupien@hrdc-drhc.net', //comma-separated lits of addresses
     from: 'Jenkins-CI <jenkins-ci@jade-build.intra.dev>',
     body: '${SCRIPT, template="groovy-html.template"}', //for details on body: https://wiki.jenkins.io/display/JENKINS/Email-ext+plugin#Email-extplugin-Scriptcontent
     mimeType: 'text/html'    
     ]
 
 
-def getApplicationName() {
-    //applicationName is derived from Jenkins project name (which is second to last in the full name)
-    def jobPathElements = currentBuild.fullProjectName.split('/')
-    def applicationName = jobPathElements[jobPathElements.length >= 2? jobPathElements.length-2: jobPathElements.length-1]
-    
-    if (getGitBranchName(false).matches(projectReleaseBranchRegex)) {
-        //If we're processing a RELEASE, we'll be dealing with the whole set of projects (ie at the parent pom level)
-        applicationName = 'gocwebtemplate-core' //TODO: >>>>>>>>>>>>>>>>> Change this!
-    }    
-    
-    echo('Application name: [' + applicationName + ']')
-    
-    return applicationName
-}
-    
-def getGitBranchName(doecho = true) {
+def getGitBranchName() {
     
     def branchName = env.BRANCH_NAME
     
@@ -79,13 +50,9 @@ def getGitBranchName(doecho = true) {
     //def git = tool('git')
     //def branchName = sh(script: "'${git}' branch | grep \"\\* \"", returnStdout: true).replace("* ", "").trim()
     
-    if (doEcho) echo('Detected Git Branch: [' + branchName + ']')
+    echo('Detected Git Branch: [' + branchName + ']')
 
     return branchName
-}
-
-def isBranchRelease() {
-    return projectGitBranchName.matches(projectReleaseBranchRegex)
 }
 
 /* Returns the specified projectModel's version by looking 
@@ -135,17 +102,9 @@ pipeline {
     
     agent any; //any: Run on any available agent - agent is same for all stages
                //none: No top-level setting.  Each stage must declare its own agent. Needed for non-blocking input.
-
-//TODO: Cleanup               
-/*               
-    parameters {
-        choice name: 'SADE_VERTICAL', choices: ['', 'dev', 'int', 'sys'], description: 'SADE vertical to target for deployment. (Default when blank:' + (deploySADEVerticalMap[projectGitBranchName]?.vertical ?: '') + ')' 
-        choice name: 'SADE_STREAM', choices: ['', '1', '2', '3'], description: 'SADE stream to target for deployment. (Default when blank:' + (deploySADEVerticalMap[projectGitBranchName]?.stream ?: '') + ')' 
-		choice name: 'DEPLOY_ACTION', choices: ['', 'deploy', 'stop', 'start', 'restart'], description: 'SADE deploy action. (Default when blank:' + (deploySADEVerticalMap[projectGitBranchName]?.deployAction ?: '') + ')' 
-    }               
-*/
+    
     options {
-        buildDiscarder logRotator(artifactNumToKeepStr: '2', numToKeepStr: '10')
+        buildDiscarder logRotator(artifactNumToKeepStr: '5', numToKeepStr: '10')
         disableConcurrentBuilds()
         timestamps()
         skipDefaultCheckout() //skip SCM pull before first stage, we'll do our own
@@ -157,8 +116,7 @@ pipeline {
     }
     
     triggers {
-        //pollSCM 'H/30 * * * *' //every 30 minutes
-        pollSCM(isBranchRelease()? '' : 'H * * * *') //never for release, every hour for others
+        //pollSCM('H H/4 * * *') //every 4 hours
         snapshotDependencies()
     }    
     
@@ -192,7 +150,7 @@ pipeline {
                 script {
                     def projectModel = readMavenPom(file: projectPom)
                     
-                    if (isBranchRelease()) {
+                    if (getGitBranchName().matches(projectReleaseBranchRegex)) {
                         //RELEASE build: make sure our dependencies are not snapshots
                         def mavenDesc = Artifactory.mavenDescriptor()
                         
@@ -210,8 +168,8 @@ pipeline {
                     } else {
                         //NOT a release build: Warn if building a release version.
                         if (!getEffectiveVersionFromProjectModel(projectModel).toUpperCase().endsWith('-SNAPSHOT')) {
-                            currentBuild.result = 'ABORTED' //'UNSTABLE'
-                            error('Trying to build RELEASE (ie non-SNAPSHOT) project version from a non-release branch.  Are you sure this is what you want? If not you will want to update the pom.xml.')
+                            currentBuild.result = 'UNSTABLE'
+                            echo('WARNING: Trying to build RELEASE (ie non-SNAPSHOT) project version from a non-release branch.  Are you sure this is what you want? If not you will want to update the pom.xml.')
                         }
                     }
                 } //of script
@@ -221,62 +179,23 @@ pipeline {
         stage('Build and Deploy to Artifactory') {
             steps {
                 withMaven(maven: 'maven') {
-                    sh(script: "mvn --batch-mode --errors --update-snapshots -Dbuild_number=${BUILD_NUMBER} -f ${projectPom} clean install") //TODO: >>>>>>>>> CHANGE THIS
+                    sh(script: "mvn --batch-mode --errors --update-snapshots -Dbuild_number=${BUILD_NUMBER} -f ${applicationName} clean deploy")
                 }
             }
         }
-        
-        stage("Deployment to SADE") {
-            when {
-                expression {                
-                    //only for NON-release branches AND projects that are NOT in the exluded list
-                    return !(isBranchRelease() || deploySADEExludedProjects.contains(applicationName))
-                }
-            }
-            steps {
-                script {
-                  
-                    def sadeVerticalName = (deploySADEVerticalMap[projectGitBranchName]?.vertical ?: '')
-                    def sadeStreamName = (deploySADEVerticalMap[projectGitBranchName]?.stream ?: '')
-                    def sadeDeployAction = (deploySADEVerticalMap[projectGitBranchName]?.deployAction ?: '')
-                                        
-                    if (sadeVerticalName && sadeStreamName) { //do we have a SADE_VERTICAL+STREAM value?
-                        def projectModel = readMavenPom(file: projectPom)
-                        
-                        echo("${new java.util.Date()}: Invoking SADE Deploy Build")
-                        
-                        //NOTE: Setting wait: true would be ideal (so we'd know if the deploy failed), but it creates bottlenecks in Jenkins
-                        build(job: deploySADEBuildName, wait: false, propagate: true,
-                            parameters: [
-                                string(name: 'DEPLOY_TARGET_VERTICAL', value: sadeVerticalName), 
-                                string(name: 'DEPLOY_TARGET_STREAM', value: sadeStreamName), 
-                                string(name: 'DEPLOY_ACTION', value: sadeDeployAction), 
-                                string(name: 'DEPLOY_GROUPID', value: getEffectiveGroupIdFromProjectModel(projectModel)), 
-                                string(name: 'DEPLOY_ARTIFACTID', value: projectModel.artifactId), 
-                                string(name: 'DEPLOY_ARTIFACT_VERSION', value: getEffectiveVersionFromProjectModel(projectModel))
-                                ])
-                    } else {
-                        currentBuild.result = 'UNSTABLE'
-                        echo('WARNING: SADE Vertical name is blank, skipping deployment.')
-                    }
-                } //of script
-            } //of steps
-        } //of stage
     }
 
     post {
         always { //Always run, regardless of build status
             //archiveArtifacts(artifacts: "${applicationName}/target/*.?ar", allowEmptyArchive: true, fingerprint: true)
+            
             junit(testResults: "${applicationName}/target/surefire-reports/TEST-*.xml", allowEmptyResults: true)
-            script {
-                if (isBranchRelease()) {
-                    emailext(to: emailextConfig.to,
-                             from: emailextConfig.from,
-                             body: emailextConfig.body,
-                             mimeType: emailextConfig.mimeType,
-                             subject: "Jenkins Build [${currentBuild.fullDisplayName}] RELEASE BUILD STATUS - [${currentBuild.result}]")
-                }
-            }
+            
+            emailext(to: emailextConfig.to,
+                     from: emailextConfig.from,
+                     body: emailextConfig.body,
+                     mimeType: emailextConfig.mimeType,
+                     subject: "Jenkins Build [${currentBuild.fullDisplayName}] Built - [${currentBuild.result}] for application [${applicationName}]")
         }
         regression { //Run if the current builds status is worse than the previous builds status
             emailext(to: emailextConfig.to,
