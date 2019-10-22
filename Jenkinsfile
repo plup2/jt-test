@@ -86,9 +86,6 @@ def getGitBranchName(doEcho = true) {
     return branchName
 }
 
-def isBranchRelease() {
-    return projectGitBranchName.matches(projectReleaseBranchRegex)
-}
 
 /* Returns the specified projectModel's version by looking 
    first to see if a version is defined, and if not go to 
@@ -194,7 +191,7 @@ pipeline {
                 script {
                     def projectModel = readMavenPom(file: projectPom)
                     
-                    if (isBranchRelease()) {
+                    if (branchIsRelease) {
                         //RELEASE build: make sure our dependencies are not snapshots
                         def mavenDesc = Artifactory.mavenDescriptor()
                         
@@ -236,7 +233,7 @@ pipeline {
             when {
                 expression {                
                     //only for NON-release branches AND projects that are NOT in the exluded list
-                    return !(isBranchRelease() || deploySADEExludedProjects.contains(applicationName))
+                    return !(branchIsRelease || deploySADEExludedProjects.contains(applicationName))
                 }
             }
             steps {
@@ -275,7 +272,7 @@ pipeline {
             //archiveArtifacts(artifacts: "${applicationName}/target/*.?ar", allowEmptyArchive: true, fingerprint: true)
             junit(testResults: "${applicationName}/target/surefire-reports/TEST-*.xml", allowEmptyResults: true)
             script {
-                if (isBranchRelease()) {
+                if (branchIsRelease) {
                     emailext(to: emailextConfig.to,
                              from: emailextConfig.from,
                              body: emailextConfig.body,
