@@ -220,6 +220,7 @@ pipeline {
         stage('Build and Deploy to Artifactory') {
             steps {
                 script {
+                    def git = tool('git')
                     def gitCommitId = sh(script: "'${git}' rev-parse HEAD", returnStdout: true).trim()
 
                     withMaven(maven: 'maven') {
