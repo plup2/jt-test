@@ -68,7 +68,7 @@ def getApplicationName() {
     return applicationName
 }
     
-def getGitBranchName(doecho = true) {
+def getGitBranchName(doEcho = true) {
     
     def branchName = env.BRANCH_NAME
     
@@ -220,8 +220,12 @@ pipeline {
         
         stage('Build and Deploy to Artifactory') {
             steps {
-                withMaven(maven: 'maven') {
-                    sh(script: "mvn --batch-mode --errors --update-snapshots -Dbuild_number=${BUILD_NUMBER} -f ${projectPom} clean install") //TODO: >>>>>>>>> CHANGE THIS
+                script {
+                    def gitCommitId = sh(script: "'${git}' rev-parse HEAD", returnStdout: true).trim()
+
+                    withMaven(maven: 'maven') {
+                        sh(script: "mvn --batch-mode --errors --update-snapshots -Dbuild_number=${BUILD_NUMBER} -Dbuild_githash=${gitCommitId} -f ${projectPom} clean install") //TODO: >>>>>>>>> CHANGE THIS
+                    }
                 }
             }
         }
@@ -256,7 +260,7 @@ pipeline {
                                 string(name: 'DEPLOY_ARTIFACT_VERSION', value: getEffectiveVersionFromProjectModel(projectModel))
                                 ])
                     } else {
-                        currentBuild.result = 'UNSTABLE'
+                        //currentBuild.result = 'UNSTABLE'
                         echo('WARNING: SADE Vertical name is blank, skipping deployment.')
                     }
                 } //of script
