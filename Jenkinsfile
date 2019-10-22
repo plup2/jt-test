@@ -23,7 +23,7 @@ def projectGitCredsName = 'SV-TFS2015-Build'
 
 def projectReleaseBranchRegex = 'release-.*'  //Build from these branches are considered "release" builds
 def projectGitBranchName = getGitBranchName()
-def applicationName = getApplicationName()
+def applicationName = getApplicationName(projectReleaseBranchRegex)
 
 // Project's POM file
 def projectPom = applicationName + '/pom.xml'
@@ -53,12 +53,12 @@ def emailextConfig = [
     ]
 
 
-def getApplicationName() {
+def getApplicationName(currentBranchName) {
     //applicationName is derived from Jenkins project name (which is second to last in the full name)
     def jobPathElements = currentBuild.fullProjectName.split('/')
     def applicationName = jobPathElements[jobPathElements.length >= 2? jobPathElements.length-2: jobPathElements.length-1]
     
-    if (projectGitBranchName.matches(projectReleaseBranchRegex)) {
+    if (getGitBranchName(false).matches(currentBranchName)) {
         //If we're processing a RELEASE, we'll be dealing with the whole set of projects (ie at the parent pom level)
         applicationName = 'gocwebtemplate-core' //TODO: >>>>>>>>>>>>>>>>> Change this!
     }    
