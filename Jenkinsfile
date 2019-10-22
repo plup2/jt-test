@@ -21,6 +21,7 @@
 def projectGitURL = 'http://tfs.intra.dmz:8080/tfs/ProjectCollection/EWS-SWE/_git/JavaTemplates'
 def projectGitCredsName = 'SV-TFS2015-Build'
 
+def projectReleaseBranchRegex = 'release-.*'  //Build from these branches are considered "release" builds
 def projectGitBranchName = getGitBranchName()
 def applicationName = getApplicationName()
 
@@ -30,7 +31,6 @@ def projectPom = applicationName + '/pom.xml'
 // Git Branch/Paths to match for changes
 def projectGitWatchedPathRegex = applicationName.replaceAll("\\.", '') + '/.*'
 def projectGitWatchedBranches = [[name: '*/' + projectGitBranchName]]
-def projectReleaseBranchRegex = 'release-.*'
 
 // SADE deployment info
 def deploySADEBuildName = '/ca.gc.sade/Deployments/deploy-springboot'
