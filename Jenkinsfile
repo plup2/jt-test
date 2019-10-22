@@ -58,7 +58,7 @@ def getApplicationName() {
     def jobPathElements = currentBuild.fullProjectName.split('/')
     def applicationName = jobPathElements[jobPathElements.length >= 2? jobPathElements.length-2: jobPathElements.length-1]
     
-    if (getGitBranchName(false).matches(projectReleaseBranchRegex)) {
+    if (projectGitBranchName.matches(projectReleaseBranchRegex)) {
         //If we're processing a RELEASE, we'll be dealing with the whole set of projects (ie at the parent pom level)
         applicationName = 'gocwebtemplate-core' //TODO: >>>>>>>>>>>>>>>>> Change this!
     }    
