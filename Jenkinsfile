@@ -21,7 +21,7 @@
 def projectGitURL = 'http://tfs.intra.dmz:8080/tfs/ProjectCollection/EWS-SWE/_git/JavaTemplates'
 def projectGitCredsName = 'SV-TFS2015-Build'
 
-def projectReleaseBranchRegex = 'release-.*'  //Build from these branches are considered "release" builds
+def projectReleaseBranchRegex = 'release-.*'  //Builds from these branches are considered "release" builds
 def projectGitBranchName = getGitBranchName()
 def branchIsRelease = projectGitBranchName.matches(projectReleaseBranchRegex)
 
