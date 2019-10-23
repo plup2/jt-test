@@ -202,9 +202,9 @@ pipeline {
                         }
                         
                         // Also make sure our own version is not a snapshot
-                        if (getEffectiveVersionFromProjectModel(projectModel).toUpperCase().endsWith('-SNAPSHOT')) {
+                        if (!getEffectiveVersionFromProjectModel(projectModel).toUpperCase().endsWith('-SNAPSHOT')) {
                             currentBuild.result = 'ABORTED'
-                            error('Trying to build a SNAPSHOT project version from a release branch.  Please update the pom.xml')
+                            error('Project version is expected to be a SNAPSHOT version. This script wll take care of proper verioning for release. Please update the pom.xml')
                         }
                     } else {
                         //NOT a release build: Warn if building a release version.
@@ -224,6 +224,7 @@ pipeline {
                     def git = tool('git')
 
                     //---[ A little value gymnastic
+                    //NOTE: pom version is assumed/expected to be in format "9.9.9.9.9-SNAPSHOT"
                     def projectModel = readMavenPom(file: projectPom)
                     def version = projectModel.version.replace('-SNAPSHOT', '') 
                     def tagName = "v" + version                     
