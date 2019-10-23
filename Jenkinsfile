@@ -201,13 +201,13 @@ pipeline {
                             error('Snapshot(s) detected in dependencies.  Based on the branch, this is a release build.  Snapshot dependencies are not allowed.')
                         }
                         
-                        // Also make sure our own version is not a snapshot
+                        // Also make sure our own version IS a snapshot (YES, we want -SHAPSHOT in the version!  We'll be removing it ourselves)
                         if (!getEffectiveVersionFromProjectModel(projectModel).toUpperCase().endsWith('-SNAPSHOT')) {
                             currentBuild.result = 'ABORTED'
                             error('Project version is expected to be a SNAPSHOT version. This script wll take care of proper verioning for release. Please update the pom.xml')
                         }
                     } else {
-                        //NOT a release build: Warn if building a release version.
+                        //NOT a release build: Error if building a release version.
                         if (!getEffectiveVersionFromProjectModel(projectModel).toUpperCase().endsWith('-SNAPSHOT')) {
                             currentBuild.result = 'ABORTED' //'UNSTABLE'
                             error('Trying to build RELEASE (ie non-SNAPSHOT) project version from a non-release branch.  Are you sure this is what you want? If not you will want to update the pom.xml.')
