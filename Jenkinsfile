@@ -132,6 +132,8 @@ def getEffectiveGroupIdFromProjectModel(projectModel) {
 
 pipeline {
     
+    //NOTE: This Jenkinsfile was built without store/retrieve between stages and rely on the fact that the state of the
+    //      workstation stay between stages.  It is meant to be used with the agent set a top-level.
     agent any; //any: Run on any available agent - agent is same for all stages
                //none: No top-level setting.  Each stage must declare its own agent. Needed for non-blocking input.
 
@@ -204,7 +206,7 @@ pipeline {
                         // Also make sure our own version IS a snapshot (YES, we want -SHAPSHOT in the version!  We'll be removing it ourselves)
                         if (!getEffectiveVersionFromProjectModel(projectModel).toUpperCase().endsWith('-SNAPSHOT')) {
                             currentBuild.result = 'ABORTED'
-                            error('Project version is expected to be a SNAPSHOT version. This script wll take care of proper verioning for release. Please update the pom.xml')
+                            error('Project version is expected to be a SNAPSHOT version. This script will take care of proper verioning for release. Please update the pom.xml')
                         }
                     } else {
                         //NOT a release build: Error if building a release version.
@@ -256,7 +258,7 @@ pipeline {
                     
                     //---[ Commit next version, push everything and checkout newly created tag for building
                     withCredentials([usernameColonPassword(credentialsId: projectGitCredsName, variable: 'CREDENTIALS')]) {
-                        sh(script: "'${git}' commit --all --message 'Jenkins build ${currentBuild.fullProjectName} #${BUILD_NUMBER} updating pom to next version ${version} on ${java.time.LocalDateTime.now()}'")
+                        sh(script: "'${git}' commit --all --message 'Jenkins build ${currentBuild.fullProjectName} #${BUILD_NUMBER} updating pom to next version ${nextVersion} on ${java.time.LocalDateTime.now()}'")
                     
                         sh(script: "'${git}' push ${gitURLWithCreds}")
                         sh(script: "'${git}' push ${gitURLWithCreds} tag release/${tagName}")
