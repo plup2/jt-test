@@ -235,7 +235,7 @@ pipeline {
 
                     //---[ Remove "-SNAPSHOT" from version
                     withMaven(maven: 'maven', publisherStrategy: 'EXPLICIT') { //turn off publishers for this invocation
-                        sh(script: "mvn --batch-mode --errors versions:set -DnewVersion=${version}")
+                        sh(script: "mvn --batch-mode --errors versions:set -DnewVersion=${version} -f ${projectPom}")
                     }
                     
                     //---[ Commit release version changes and create tag
@@ -250,7 +250,7 @@ pipeline {
                     
                     //---[ Set next version right away 
                     withMaven(maven: 'maven', publisherStrategy: 'EXPLICIT') { //turn off publishers for this invocation
-                        sh(script: "mvn --batch-mode --errors versions:set -DnewVersion=${nextVersion}")
+                        sh(script: "mvn --batch-mode --errors versions:set -DnewVersion=${nextVersion} -f ${projectPom}")
                     }
                     
                     //---[ Commit next version, push everything and checkout newly created tag for building
