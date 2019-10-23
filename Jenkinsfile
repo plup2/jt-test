@@ -31,7 +31,7 @@ def applicationName = getApplicationName(projectReleaseBranchRegex)
 def projectPom = applicationName + '/pom.xml'
 
 // Git Branch/Paths to match for changes
-def projectGitWatchedPathRegex = applicationName.replaceAll("\\.", '') + '/.*'
+def projectGitWatchedPathRegex = applicationName.replace(".", '') + '/.*'
 def projectGitWatchedBranches = [[name: '*/' + projectGitBranchName]]
 
 // SADE deployment info
@@ -218,20 +218,20 @@ pipeline {
         } //of stage
         
         stage('Prepare for Release') {
-            when { expression {return getGitBranchName().matches(projectReleaseBranchRegex)} }
+            when { expression {return branchIsRelease)} }
             steps {
                 script {
                     def git = tool('git')
 
                     //---[ A little value gymnastic
                     def projectModel = readMavenPom(file: projectPom)
-                    def version = projectModel.version.replaceAll('-SNAPSHOT', '') 
+                    def version = projectModel.version.replace('-SNAPSHOT', '') 
                     def tagName = "v" + version                     
                     def revNumPos = version.lastIndexOf('.') + 1
                     def revNum = Integer.parseInt(version.substring(revNumPos)) + 1
                     def nextVersion = version.substring(0, revNumPos) + revNum + '-SNAPSHOT'
 
-                    def gitURLWithCreds = projectGitURL.replaceAll('//', '//${CREDENTIALS}@')
+                    def gitURLWithCreds = projectGitURL.replace('//', '//${CREDENTIALS}@')
 
                     //---[ Remove "-SNAPSHOT" from version
                     withMaven(maven: 'maven', publisherStrategy: 'EXPLICIT') { //turn off publishers for this invocation
