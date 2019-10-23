@@ -218,7 +218,7 @@ pipeline {
         } //of stage
         
         stage('Prepare for Release') {
-            when { expression {return branchIsRelease)} }
+            when { expression {return branchIsRelease} }
             steps {
                 script {
                     def git = tool('git')
