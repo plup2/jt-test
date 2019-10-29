@@ -234,7 +234,7 @@ pipeline {
                     def revNum = Integer.parseInt(version.substring(revNumPos)) + 1
                     def nextVersion = version.substring(0, revNumPos) + revNum + '-SNAPSHOT'
 
-                    def gitURLWithCreds = projectGitURL.replace('//', '//${CREDENTIALS}@')
+                    def gitURLWithCreds = projectGitURL //projectGitURL.replace('//', '//${CREDENTIALS}@')
 
                     //---[ Remove "-SNAPSHOT" from version
                     withMaven(maven: 'maven', publisherStrategy: 'EXPLICIT') { //turn off publishers for this invocation
@@ -326,6 +326,9 @@ pipeline {
             junit(testResults: "${applicationName}/target/surefire-reports/TEST-*.xml", allowEmptyResults: true)
             script {
                 if (branchIsRelease) {
+                    //Important: Clean on failure otherwise local tag will get in the way of next run
+                    cleanWs(cleanWhenSuccess: false, notFailBuild: true)
+                    
                     emailext(to: emailextConfig.to,
                              from: emailextConfig.from,
                              body: emailextConfig.body,
