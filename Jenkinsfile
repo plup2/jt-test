@@ -40,31 +40,51 @@ pipeline {
                 script {
                     def projectModel = readMavenPom(file: projectPom)
                     
-                    if (params.DEPLOY_VERSION.contains(" ")) {
-                        currentBuild.result = 'ABORTED'
-                        error('DEPLOY_VERSION must not contain spaces.')
-                    }
-                    
-                    if (!params.DEPLOY_VERSION.toUpperCase().endsWith('-SNAPSHOT')) {
-                        //RELEASE build: make sure our dependencies are not snapshots
-                        def mavenDesc = Artifactory.mavenDescriptor()
+                    if (params.DEPLOY_VERSION.isEmpty()) {
+                        // No version parameter specified: make sure the one from pom file is Snapshot
                         
-                        mavenDesc.pomFile = projectPom
-                        if (mavenDesc.hasSnapshots()) {
+                        if (!projectModel.version.endsWith('-SNAPSHOT')) {
                             currentBuild.result = 'ABORTED'
-                            error('Snapshot(s) detected in dependencies.  This is a release build.  Snapshot dependencies are not allowed.')
+                            error('Building non-SNAPSHOT versions must be explicitly triggerd by specifying the DEPLOY_VERSION parameter.')
+                        }
+                    }
+                    else {
+                        // A version parameter was specified, perform some checks
+                    
+                        if (params.DEPLOY_VERSION.contains(" ")) {
+                            currentBuild.result = 'ABORTED'
+                            error('DEPLOY_VERSION must not contain spaces.')
+                        }
+                        
+                        if (!params.DEPLOY_VERSION.toUpperCase().endsWith('-SNAPSHOT')) {
+                            //RELEASE build: make sure our dependencies are not snapshots
+                            def mavenDesc = Artifactory.mavenDescriptor()
+                            
+                            mavenDesc.pomFile = projectPom
+                            if (mavenDesc.hasSnapshots()) {
+                                currentBuild.result = 'ABORTED'
+                                error('Snapshot(s) detected in dependencies.  This is a release build.  Snapshot dependencies are not allowed.')
+                            }
                         }
                     }
                 } //of script
             } //of steps
         } //of stage
-        
-        stage('Build and Deploy to Artifactory') {
+
+        stage('Release build confirmation') {
+            when {
+                expression {
+                    return (!params.DEPLOY_VERSION.isEmpty()) && (!params.DEPLOY_VERSION.toUpperCase().endsWith('-SNAPSHOT'));
+                }
+            }
             input {
-                message "About to deploy version [${params.DEPLOY_VERSION}] to Artifactory, are you sure?"
+                message "About to deploy RELEASE version [${params.DEPLOY_VERSION}] to Artifactory, are you sure?"
                 ok 'Yes, deploy!'
                 submitterParameter 'DEPLOY_SUBMITTER'
             }
+        }
+        
+        stage('Build and Deploy to Artifactory') {
             steps {
                 script {
                     def git = tool('git')
