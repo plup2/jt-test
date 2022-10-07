@@ -84,7 +84,7 @@ pipeline {
             }
             steps {
                 script {
-                    //
+                    sh(script: "echo Release build authorized.")
                 }
             }
         }
