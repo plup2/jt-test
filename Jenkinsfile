@@ -125,7 +125,7 @@ pipeline {
             archiveArtifacts(artifacts: "gocwebtemplate-*/**/target/*.?ar", allowEmptyArchive: true, fingerprint: true)
             archiveArtifacts(artifacts: "builds/target/gocwebtemplate-*-${params.DEPLOY_VERSION}.zip", allowEmptyArchive: true, fingerprint: true)
             
-            junit(testResults: "${applicationName}/target/surefire-reports/TEST-*.xml", allowEmptyResults: true)
+            junit(testResults: "gocwebtemplate-*/**/target/surefire-reports/TEST-*.xml", allowEmptyResults: true)
             
             emailext(to: emailextConfig.to,
                      from: emailextConfig.from,
