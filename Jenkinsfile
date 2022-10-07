@@ -123,7 +123,7 @@ pipeline {
     post {
         always { //Always run, regardless of build status
             archiveArtifacts(artifacts: "gobwebtemplat-*/**/target/*.?ar", allowEmptyArchive: true, fingerprint: true)
-            archiveArtifacts(artifacts: "builds\target\gocwebtemplate-*-${params.DEPLOY_VERSION}.zip", allowEmptyArchive: true, fingerprint: true)
+            archiveArtifacts(artifacts: "builds/target/gocwebtemplate-*-${params.DEPLOY_VERSION}.zip", allowEmptyArchive: true, fingerprint: true)
             
             junit(testResults: "${applicationName}/target/surefire-reports/TEST-*.xml", allowEmptyResults: true)
             
