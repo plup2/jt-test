@@ -110,7 +110,7 @@ pipeline {
                             sh(script: "ant -buildfile ./builds/build-archetypes.xml")
 
                             //---[ If this is a release version, build ZIP file for external clients
-                            if (!params.DEPLOY_VERSION.isEmpty()) && (!params.DEPLOY_VERSION.toUpperCase().endsWith('-SNAPSHOT')) {
+                            if ((!params.DEPLOY_VERSION.isEmpty()) && (!params.DEPLOY_VERSION.toUpperCase().endsWith('-SNAPSHOT'))) {
                                 sh(script: "ant -buildfile ./builds/build-release.xml")
                             }
                         }
