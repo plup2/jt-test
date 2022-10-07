@@ -82,6 +82,8 @@ pipeline {
                 ok 'Yes, deploy!'
                 submitterParameter 'DEPLOY_SUBMITTER'
             }
+            steps {
+            }
         }
         
         stage('Build and Deploy to Artifactory') {
