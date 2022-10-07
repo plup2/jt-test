@@ -2,7 +2,7 @@
 def applicationName = 'JavaTemplates'
 def projectPom = './pom.xml'
 
-//TODO: Add to email recipients, set versions, actually deploy, deploy archetypes
+//TODO: Add to email recipients, actually deploy
 
 // Email extension plugin base parameters
 def emailextConfig = [
@@ -31,7 +31,7 @@ pipeline {
     }
    
     parameters {
-      string(defaultValue: '', description: 'Deploy version (e.g. 2.0.1)', name: 'DEPLOY_VERSION', trim: true)
+      string(defaultValue: '', description: 'Deploy version (e.g. 2.0.1) Leave blank to use version form source code.', name: 'DEPLOY_VERSION', trim: true)
     }    
     
     stages {
@@ -90,14 +90,30 @@ pipeline {
             }
         }
         
-        stage('Build and Deploy to Artifactory') {
+        stage('Build and Deploy') {
             steps {
                 script {
                     def git = tool('git')
                     def gitCommitId = sh(script: "'${git}' rev-parse HEAD", returnStdout: true).trim()
                     
-                    withMaven(maven: 'maven', jdk: 'JDK11') {
-                        sh(script: "mvn --batch-mode --errors --update-snapshots -Dbuild_number=${BUILD_NUMBER} -Dbuild_git_commitid=${gitCommitId} --file ${projectPom} clean package")
+                    withAnt(ant: 'Ant', jdk: 'JDK11') {
+                        withMaven(maven: 'maven', jdk: 'JDK11') {
+                            //---[ If an explicit version was specified, override source's versions
+                            if (!params.DEPLOY_VERSION.isEmpty()) {
+                                sh(script: "ant -buildfile ./builds/build-setprojectversion.xml \"-Dgocwebtemplate.build.version=${params.DEPLOY_VERSION}\"")
+                            }
+
+                            //---[ Build/deploy main projects
+                            sh(script: "mvn --batch-mode --errors --update-snapshots -Dbuild_number=${BUILD_NUMBER} -Dbuild_git_commitid=${gitCommitId} --file ${projectPom} clean package")
+                            
+                            //---[ Build/deploy archetypes
+                            sh(script: "ant -buildfile ./builds/build-archetypes.xml")
+
+                            //---[ If this is a release version, build ZIP file for external clients
+                            if (!params.DEPLOY_VERSION.isEmpty()) && (!params.DEPLOY_VERSION.toUpperCase().endsWith('-SNAPSHOT')) {
+                                sh(script: "ant -buildfile ./builds/build-release.xml")
+                            }
+                        }
                     }
                 }
             }
@@ -106,7 +122,8 @@ pipeline {
 
     post {
         always { //Always run, regardless of build status
-            archiveArtifacts(artifacts: "${applicationName}/target/*.?ar", allowEmptyArchive: true, fingerprint: true)
+            archiveArtifacts(artifacts: "gobwebtemplat-*/**/target/*.?ar", allowEmptyArchive: true, fingerprint: true)
+            archiveArtifacts(artifacts: "builds\target\gocwebtemplate-*-${params.DEPLOY_VERSION}.zip", allowEmptyArchive: true, fingerprint: true)
             
             junit(testResults: "${applicationName}/target/surefire-reports/TEST-*.xml", allowEmptyResults: true)
             
