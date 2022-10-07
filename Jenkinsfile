@@ -73,6 +73,7 @@ pipeline {
 
         stage('Release build confirmation') {
             when {
+                beforeInput true
                 expression {
                     return (!params.DEPLOY_VERSION.isEmpty()) && (!params.DEPLOY_VERSION.toUpperCase().endsWith('-SNAPSHOT'));
                 }
