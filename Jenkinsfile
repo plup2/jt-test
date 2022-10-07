@@ -40,12 +40,12 @@ pipeline {
                 script {
                     def projectModel = readMavenPom(file: projectPom)
                     
-                    if (DEPLOY_VERSION.contains(" ")) {
+                    if (params.DEPLOY_VERSION.contains(" ")) {
                         currentBuild.result = 'ABORTED'
                         error('DEPLOY_VERSION must not contain spaces.')
                     }
                     
-                    if (!DEPLOY_VERSION.toUpperCase().endsWith('-SNAPSHOT')) {
+                    if (!params.DEPLOY_VERSION.toUpperCase().endsWith('-SNAPSHOT')) {
                         //RELEASE build: make sure our dependencies are not snapshots
                         def mavenDesc = Artifactory.mavenDescriptor()
                         
@@ -61,7 +61,7 @@ pipeline {
         
         stage('Build and Deploy to Artifactory') {
             input {
-                message "About to deploy version [${DEPLOY_VERSION}] to Artifactory, are you sure?"
+                message "About to deploy version [${params.DEPLOY_VERSION}] to Artifactory, are you sure?"
                 ok 'Yes, deploy!'
                 submitterParameter 'DEPLOY_SUBMITTER'
             }
@@ -70,7 +70,7 @@ pipeline {
                     def git = tool('git')
                     def gitCommitId = sh(script: "'${git}' rev-parse HEAD", returnStdout: true).trim()
                     
-                    withMaven(maven: 'maven') {
+                    withMaven(maven: 'maven', jdk: 'JDK11') {
                         sh(script: "mvn --batch-mode --errors --update-snapshots -Dbuild_number=${BUILD_NUMBER} -Dbuild_git_commitid=${gitCommitId} --file ${projectPom} clean package")
                     }
                 }
